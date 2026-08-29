@@ -1,0 +1,10 @@
+{
+  "effects": [
+    {"label": "Applausi", "file": "applausi.mp3"},
+    {"label": "Chiacchiericcio", "file": "chiacchiericcio.mp3"},
+    {"label": "Risata pubblico", "file": "risata-pubblico.mp3"},
+    {"label": "Campane / annuncio", "file": "campane-annuncio.mp3"},
+    {"label": "Mormorio drammatico", "file": "mormorio-drammatico.mp3"},
+    {"label": "Transizione scena", "file": "transizione-scena.mp3"}
+  ]
+}
