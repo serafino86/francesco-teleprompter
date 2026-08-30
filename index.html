@@ -327,6 +327,7 @@
       <div id="progressFill" class="progress-fill"></div>
     </div>
     <div id="soundboard" class="soundboard" aria-label="Tastiera audio"></div>
+    <button id="offlineBtn" class="offline-btn" type="button" title="Scarica questa pagina per usarla offline">Scarica offline</button>
     <div id="palette" class="palette"></div>
   </footer>
 
@@ -6630,6 +6631,16 @@
     stop.addEventListener("click", () => { audio.pause(); audio.currentTime = 0; }); board.appendChild(stop);
     const vol = document.createElement("input"); vol.type = "range"; vol.min = 0; vol.max = 1; vol.step = .05; vol.value = .8; vol.title = "Volume";
     vol.addEventListener("input", () => audio.volume = vol.value); board.appendChild(vol);
+
+    document.getElementById("offlineBtn").addEventListener("click", () => {
+      const source = '<!doctype html>\\n' + document.documentElement.outerHTML;
+      const blob = new Blob([source], {type: 'text/html;charset=utf-8'});
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'francesco-teleprompter-offline.html';
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    });
 
     setSize(cueSize);
     renderPalette();
