@@ -6442,7 +6442,17 @@
     const storageKey = "prima-attesa-tv-index";
     const sizeKey = "prima-attesa-tv-size";
 
-    let index = Math.min(Number(localStorage.getItem(storageKey) || 0), cues.length - 1);
+    const startCue = prompt(`Da quale strofa vuoi iniziare? (1-${cues.length})`);
+    let index = 0;
+    if (startCue === null || startCue.trim() === "") {
+      index = 0;
+    } else {
+      const requestedCue = Number.parseInt(startCue, 10);
+      if (Number.isInteger(requestedCue) && requestedCue >= 1 && requestedCue <= cues.length) {
+        index = requestedCue - 1;
+      }
+    }
+    localStorage.setItem(storageKey, String(index));
     let cueSize = Number(localStorage.getItem(sizeKey) || 8.6);
 
     const body = document.body;
@@ -6611,8 +6621,7 @@
       ["Secondo movimento", "7 musica secondo movimento.mp3"], ["Paradiso", "8 paradiso.mp3"],
       ["Ambient", "9 medieval ambient.mp3"], ["Finale", "10 musica finale.mp3"],
       ["Applausi", "applausi-teatro.mp3"], ["Chiacchiericcio", "chiacchiericcio-teatro.mp3"],
-      ["Risata", "risata-teatro.mp3"], ["Campane", "campane-annuncio.mp3"],
-      ["Mormorio", "mormorio-drammatico.mp3"], ["Transizione", "transizione-scena.mp3"],
+      ["Risata", "risata-teatro.mp3"],
       ["Coro 1", "cori/Il_nome_in_vetrina.mp3"], ["Coro 2", "cori/Tutti_lo_usano.mp3"], ["Coro 3", "cori/Invocazione_ad_Assisi.mp3"], ["Coro 4", "cori/Solenne_Elogio.mp3"], ["Coro 5", "cori/Il_peso_della_pietra.mp3"], ["Coro 6", "cori/Santa_disobbedienza.mp3"], ["Coro 7", "cori/Reso_Compatibile.mp3"], ["Coro 8", "cori/Francesco_sia_un_simbolo.mp3"], ["Coro 9", "cori/Il_Santo_Non_L_uomo.mp3"], ["Coro 10", "cori/Francesco_rassicuraci.mp3"], ["Coro 11", "cori/A_l’é_pa_capità.mp3"], ["Coro 12", "cori/Il_respiro_del_santo.mp3"]
     ];
     const board = document.getElementById("soundboard");
