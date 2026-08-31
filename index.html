@@ -218,11 +218,12 @@
     .start-card input { width: 100%; height: 48px; padding: 0 12px; border: 1px solid #64748b; border-radius: 8px; background: #0f172a; color: #fff; font-size: 20px; }
     .start-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
     .start-actions button { width: auto; min-width: 120px; padding: 0 14px; font-size: 15px; }
-    .page-search { position: fixed; top: 10px; right: 10px; z-index: 9000; }
+    .page-search { position: fixed; bottom: 10px; right: 10px; z-index: 9000; }
     .page-search-toggle { width: 34px; height: 34px; border-radius: 999px; font-size: 16px; background: rgba(0,0,0,.55); }
-    .page-search-panel { position: absolute; top: 40px; right: 0; display: flex; gap: 6px; width: 230px; padding: 8px; border: 1px solid rgba(255,255,255,.28); border-radius: 10px; background: rgba(15,23,42,.96); box-shadow: 0 12px 30px rgba(0,0,0,.45); }
+    .page-search-panel { position: absolute; bottom: 40px; right: 0; display: grid; grid-template-columns: 90px 1fr auto; gap: 6px; width: 310px; padding: 8px; border: 1px solid rgba(255,255,255,.28); border-radius: 10px; background: rgba(15,23,42,.96); box-shadow: 0 12px 30px rgba(0,0,0,.45); }
     .page-search-panel[hidden] { display: none; }
     .page-search-panel input { min-width: 0; width: 100%; height: 34px; padding: 0 8px; border: 1px solid #64748b; border-radius: 6px; background: #0f172a; color: #fff; }
+    .page-search-panel select { min-width: 0; height: 34px; border: 1px solid #64748b; border-radius: 6px; background: #0f172a; color: #fff; }
     .page-search-panel button { width: auto; height: 34px; padding: 0 10px; font-size: 13px; }
 
     button {
@@ -317,7 +318,8 @@
   <div class="page-search">
     <button id="pageSearchToggle" class="page-search-toggle" type="button" title="Cerca pagina o strofa" aria-expanded="false">⌕</button>
     <form id="pageSearchForm" class="page-search-panel" hidden>
-      <input id="pageSearchInput" type="number" min="1" inputmode="numeric" aria-label="Numero pagina o strofa" placeholder="Pagina/strofa">
+      <select id="pageSearchMode" aria-label="Tipo di ricerca"><option value="cue">Battuta</option><option value="page">Pagina</option></select>
+      <input id="pageSearchInput" type="number" min="1" inputmode="numeric" aria-label="Numero da cercare" placeholder="Numero">
       <button type="submit">Vai</button>
     </form>
   </div>
@@ -1615,9 +1617,9 @@
             "page": 8
       },
       {
-            "type": "line",
-            "speaker": "PAESANA 2",
-            "key": "paesana2",
+            "type": "stage",
+            "speaker": "DIDASCALIA",
+            "key": "stage",
             "note": "",
             "text": "Il Coro si sistema. Francesco è già lì, confuso tra la gente",
             "page": 9
@@ -3831,9 +3833,9 @@
             "page": 26
       },
       {
-            "type": "stage",
-            "speaker": "DIDASCALIA",
-            "key": "stage",
+            "type": "line",
+            "speaker": "FRATE FRANCESCO",
+            "key": "fratefrancesco",
             "note": "",
             "text": "Sapete cos’è il miracolo?",
             "page": 26
@@ -6502,13 +6504,18 @@
     const pageSearchToggle = document.getElementById("pageSearchToggle");
     const pageSearchForm = document.getElementById("pageSearchForm");
     const pageSearchInput = document.getElementById("pageSearchInput");
+    const pageSearchMode = document.getElementById("pageSearchMode");
     startCueInput.max = String(cues.length);
     pageSearchInput.max = String(cues.length);
 
-    function goToCue(requested) {
-      const cueNumber = Number.parseInt(requested, 10);
-      if (!Number.isInteger(cueNumber) || cueNumber < 1 || cueNumber > cues.length) return false;
-      index = cueNumber - 1;
+    function goToCue(requested, mode = "cue") {
+      const target = Number.parseInt(requested, 10);
+      if (!Number.isInteger(target) || target < 1) return false;
+      const destination = mode === "page"
+        ? cues.findIndex(cue => cue.page === target)
+        : target - 1;
+      if (destination < 0 || destination >= cues.length) return false;
+      index = destination;
       localStorage.setItem(storageKey, String(index));
       pageSearchForm.hidden = true;
       pageSearchToggle.setAttribute("aria-expanded", "false");
@@ -6523,7 +6530,7 @@
     });
     pageSearchForm.addEventListener("submit", event => {
       event.preventDefault();
-      goToCue(pageSearchInput.value);
+      goToCue(pageSearchInput.value, pageSearchMode.value);
     });
 
     function closeStartDialog(requested = 1) {
@@ -6711,7 +6718,16 @@
     const overlayAudios = new Set();
     const musicTimer = document.getElementById("musicTimer");
     let audioVolume = .8;
+    let activeChoruses = 0;
     let musicLabel = "";
+    function duckMusicForChorus() {
+      activeChoruses += 1;
+      musicAudio.volume = Math.min(audioVolume, .12);
+    }
+    function restoreMusicVolume() {
+      activeChoruses = Math.max(0, activeChoruses - 1);
+      if (activeChoruses === 0) musicAudio.volume = audioVolume;
+    }
     const formatTime = seconds => {
       if (!Number.isFinite(seconds)) return "--:--";
       const value = Math.max(0, Math.floor(seconds));
@@ -6731,15 +6747,24 @@
         const folder = /^\d+ /.test(file) ? "audio/tracce/" : "audio/";
         const src = folder + encodeURIComponent(file);
         if (file.startsWith("cori/") || !/^\d+ /.test(file)) {
+          const isChorus = file.startsWith("cori/");
           const overlay = new Audio(src);
           overlay.volume = audioVolume;
           overlayAudios.add(overlay);
-          overlay.addEventListener("ended", () => overlayAudios.delete(overlay), {once: true});
-          overlay.play().catch(() => overlayAudios.delete(overlay));
+          if (isChorus) duckMusicForChorus();
+          let released = false;
+          const releaseOverlay = () => {
+            if (released) return;
+            released = true;
+            overlayAudios.delete(overlay);
+            if (isChorus) restoreMusicVolume();
+          };
+          overlay.addEventListener("ended", releaseOverlay, {once: true});
+          overlay.play().catch(releaseOverlay);
         } else {
           musicLabel = label;
           musicAudio.src = src;
-          musicAudio.volume = audioVolume;
+          musicAudio.volume = activeChoruses ? Math.min(audioVolume, .12) : audioVolume;
           updateMusicTimer();
           musicAudio.play().catch(() => {});
         }
@@ -6751,11 +6776,12 @@
       musicAudio.pause(); musicAudio.currentTime = 0;
       overlayAudios.forEach(track => { track.pause(); track.currentTime = 0; });
       overlayAudios.clear();
+      activeChoruses = 0;
     }); board.appendChild(stop);
     const vol = document.createElement("input"); vol.type = "range"; vol.min = 0; vol.max = 1; vol.step = .05; vol.value = .8; vol.title = "Volume";
     vol.addEventListener("input", () => {
       audioVolume = Number(vol.value);
-      musicAudio.volume = audioVolume;
+      musicAudio.volume = activeChoruses ? Math.min(audioVolume, .12) : audioVolume;
       overlayAudios.forEach(track => { track.volume = audioVolume; });
     }); board.appendChild(vol);
 

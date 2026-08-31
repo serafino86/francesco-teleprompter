@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const cuesMatch = html.match(/const cues = (\[[\s\S]*?\n\];)/);
+const cues = JSON.parse(cuesMatch[1].slice(0, -1));
 
 test('all’apertura mostra una finestra interna per scegliere pagina o strofa', () => {
   assert.match(html, /id="startDialog"/);
@@ -38,5 +40,29 @@ test('mostra un timer compatto per la musica sotto Scarica offline', () => {
 test('offre una ricerca discreta per andare a una pagina o strofa', () => {
   assert.match(html, /id="pageSearchToggle"/);
   assert.match(html, /id="pageSearchInput"/);
-  assert.match(html, /function goToCue\(requested\)/);
+  assert.match(html, /id="pageSearchMode"/);
+  assert.match(html, /function goToCue\(requested, mode/);
+  assert.match(html, /findIndex\(cue => cue\.page === target\)/);
+  assert.match(html, /\.page-search \{[^}]*bottom: 10px;[^}]*right: 10px;/);
+});
+
+test('la battuta 145 è una didascalia', () => {
+  assert.equal(cues[144].type, 'stage');
+  assert.equal(cues[144].speaker, 'DIDASCALIA');
+  assert.match(cues[144].text, /Francesco è già lì, confuso tra la gente/);
+});
+
+test('la battuta 422 è pronunciata da Frate Francesco', () => {
+  assert.equal(cues[421].type, 'line');
+  assert.equal(cues[421].speaker, 'FRATE FRANCESCO');
+  assert.equal(cues[421].key, 'fratefrancesco');
+  assert.match(cues[421].text, /Sapete cos’è il miracolo\?/);
+});
+
+test('durante un coro abbassa la musica e la ripristina alla fine', () => {
+  assert.match(html, /function duckMusicForChorus\(/);
+  assert.match(html, /musicAudio\.volume\s*=\s*Math\.min\(audioVolume,\s*\.12\)/);
+  assert.match(html, /const releaseOverlay = \(\) => \{[\s\S]{0,240}restoreMusicVolume\(\)/);
+  assert.match(html, /overlay\.addEventListener\("ended",\s*releaseOverlay/);
+  assert.match(html, /musicAudio\.volume = activeChoruses \? Math\.min\(audioVolume, \.12\) : audioVolume/);
 });
