@@ -206,6 +206,10 @@
     .soundboard button { flex: 0 0 auto; width: auto; min-width: 42px; height: 32px; padding: 0 9px; font-size: 12px; white-space: nowrap; }
     .soundboard input { width: 84px; accent-color: var(--accent); }
 
+    .offline-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .offline-btn { width: auto; height: 34px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
+    .music-timer { min-height: 16px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
     button {
       width: 48px;
       height: 48px;
@@ -271,7 +275,8 @@
       .button-row { justify-content: center; }
       .progress { order: 2; }
       .soundboard { order: 3; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; max-height: 44px; }
-      .palette { order: 4; overflow-x: auto; }
+      .offline-tools { order: 4; align-items: center; }
+      .palette { order: 5; overflow-x: auto; }
       .topbar,
       .main,
       .controls {
@@ -327,7 +332,10 @@
       <div id="progressFill" class="progress-fill"></div>
     </div>
     <div id="soundboard" class="soundboard" aria-label="Tastiera audio"></div>
-    <button id="offlineBtn" class="offline-btn" type="button" title="Scarica questa pagina per usarla offline">Scarica offline</button>
+    <div class="offline-tools">
+      <button id="offlineBtn" class="offline-btn" type="button" title="Scarica questa pagina per usarla offline">Scarica offline</button>
+      <div id="musicTimer" class="music-timer" aria-live="polite"></div>
+    </div>
     <div id="palette" class="palette"></div>
   </footer>
 
@@ -6466,10 +6474,12 @@
     const nextPanel = document.getElementById("nextPanel");
     const palette = document.getElementById("palette");
 
-    function setSize(value) {
+    function setSize(value, refresh = true) {
       cueSize = Math.min(12, Math.max(5.4, value));
       document.documentElement.style.setProperty("--cue-size", cueSize + "vh");
       localStorage.setItem(sizeKey, String(cueSize));
+      lineText.style.fontSize = "";
+      if (refresh) render();
     }
 
     function cueColor(cue) {
@@ -6625,21 +6635,58 @@
       ["Coro 1", "cori/Il_nome_in_vetrina.mp3"], ["Coro 2", "cori/Tutti_lo_usano.mp3"], ["Coro 3", "cori/Invocazione_ad_Assisi.mp3"], ["Coro 4", "cori/Solenne_Elogio.mp3"], ["Coro 5", "cori/Il_peso_della_pietra.mp3"], ["Coro 6", "cori/Santa_disobbedienza.mp3"], ["Coro 7", "cori/Reso_Compatibile.mp3"], ["Coro 8", "cori/Francesco_sia_un_simbolo.mp3"], ["Coro 9", "cori/Il_Santo_Non_L_uomo.mp3"], ["Coro 10", "cori/Francesco_rassicuraci.mp3"], ["Coro 11", "cori/A_l’é_pa_capità.mp3"], ["Coro 12", "cori/Il_respiro_del_santo.mp3"]
     ];
     const board = document.getElementById("soundboard");
-    const audio = new Audio();
-    audio.loop = false;
+    const musicAudio = new Audio();
+    musicAudio.loop = false;
+    const overlayAudios = new Set();
+    const musicTimer = document.getElementById("musicTimer");
+    let audioVolume = .8;
+    let musicLabel = "";
+    const formatTime = seconds => {
+      if (!Number.isFinite(seconds)) return "--:--";
+      const value = Math.max(0, Math.floor(seconds));
+      return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+    };
+    const updateMusicTimer = () => {
+      musicTimer.textContent = musicLabel
+        ? `${musicLabel} · ${formatTime(musicAudio.currentTime)} / ${formatTime(musicAudio.duration)}`
+        : "";
+    };
+    musicAudio.addEventListener("timeupdate", updateMusicTimer);
+    musicAudio.addEventListener("loadedmetadata", updateMusicTimer);
+    musicAudio.addEventListener("ended", () => { musicLabel = ""; updateMusicTimer(); });
     audioTracks.forEach(([label, file]) => {
       const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.title = `Riproduci ${label}`;
       b.addEventListener("click", () => {
         const folder = /^\d+ /.test(file) ? "audio/tracce/" : "audio/";
-        audio.src = folder + encodeURIComponent(file);
-        audio.play().catch(() => {});
+        const src = folder + encodeURIComponent(file);
+        if (file.startsWith("cori/") || !/^\d+ /.test(file)) {
+          const overlay = new Audio(src);
+          overlay.volume = audioVolume;
+          overlayAudios.add(overlay);
+          overlay.addEventListener("ended", () => overlayAudios.delete(overlay), {once: true});
+          overlay.play().catch(() => overlayAudios.delete(overlay));
+        } else {
+          musicLabel = label;
+          musicAudio.src = src;
+          musicAudio.volume = audioVolume;
+          updateMusicTimer();
+          musicAudio.play().catch(() => {});
+        }
       });
       board.appendChild(b);
     });
     const stop = document.createElement("button"); stop.type = "button"; stop.textContent = "■"; stop.title = "Ferma audio";
-    stop.addEventListener("click", () => { audio.pause(); audio.currentTime = 0; }); board.appendChild(stop);
+    stop.addEventListener("click", () => {
+      musicAudio.pause(); musicAudio.currentTime = 0;
+      overlayAudios.forEach(track => { track.pause(); track.currentTime = 0; });
+      overlayAudios.clear();
+    }); board.appendChild(stop);
     const vol = document.createElement("input"); vol.type = "range"; vol.min = 0; vol.max = 1; vol.step = .05; vol.value = .8; vol.title = "Volume";
-    vol.addEventListener("input", () => audio.volume = vol.value); board.appendChild(vol);
+    vol.addEventListener("input", () => {
+      audioVolume = Number(vol.value);
+      musicAudio.volume = audioVolume;
+      overlayAudios.forEach(track => { track.volume = audioVolume; });
+    }); board.appendChild(vol);
 
     document.getElementById("offlineBtn").addEventListener("click", () => {
       const source = '<!doctype html>\\n' + document.documentElement.outerHTML;
@@ -6651,7 +6698,7 @@
       setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     });
 
-    setSize(cueSize);
+    setSize(cueSize, false);
     renderPalette();
     render();
   </script>
