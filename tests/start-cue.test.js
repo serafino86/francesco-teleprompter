@@ -61,8 +61,8 @@ test('la battuta 422 è pronunciata da Frate Francesco', () => {
 
 test('durante un coro abbassa la musica e la ripristina alla fine', () => {
   assert.match(html, /function duckMusicForChorus\(/);
-  assert.match(html, /musicAudio\.volume\s*=\s*Math\.min\(audioVolume,\s*\.12\)/);
+  assert.match(html, /musicAudio\.volume\s*=\s*Math\.min\(audioVolume,\s*\.05\)/);
   assert.match(html, /const releaseOverlay = \(\) => \{[\s\S]{0,240}restoreMusicVolume\(\)/);
   assert.match(html, /overlay\.addEventListener\("ended",\s*releaseOverlay/);
-  assert.match(html, /musicAudio\.volume = activeChoruses \? Math\.min\(audioVolume, \.12\) : audioVolume/);
+  assert.match(html, /musicAudio\.volume = activeChoruses \? Math\.min\(audioVolume, \.05\) : audioVolume/);
 });

@@ -6722,7 +6722,7 @@
     let musicLabel = "";
     function duckMusicForChorus() {
       activeChoruses += 1;
-      musicAudio.volume = Math.min(audioVolume, .12);
+      musicAudio.volume = Math.min(audioVolume, .05);
     }
     function restoreMusicVolume() {
       activeChoruses = Math.max(0, activeChoruses - 1);
@@ -6764,7 +6764,7 @@
         } else {
           musicLabel = label;
           musicAudio.src = src;
-          musicAudio.volume = activeChoruses ? Math.min(audioVolume, .12) : audioVolume;
+          musicAudio.volume = activeChoruses ? Math.min(audioVolume, .05) : audioVolume;
           updateMusicTimer();
           musicAudio.play().catch(() => {});
         }
@@ -6781,7 +6781,7 @@
     const vol = document.createElement("input"); vol.type = "range"; vol.min = 0; vol.max = 1; vol.step = .05; vol.value = .8; vol.title = "Volume";
     vol.addEventListener("input", () => {
       audioVolume = Number(vol.value);
-      musicAudio.volume = activeChoruses ? Math.min(audioVolume, .12) : audioVolume;
+      musicAudio.volume = activeChoruses ? Math.min(audioVolume, .05) : audioVolume;
       overlayAudios.forEach(track => { track.volume = audioVolume; });
     }); board.appendChild(vol);
 
