@@ -45,6 +45,13 @@ test('mostra timer e download ben visibili nella colonna destra', () => {
   assert.match(html, /MUSICA · In attesa/);
 });
 
+test('Scarica offline scarica il pacchetto ZIP completo', () => {
+  assert.match(html, /link\.href = "francesco-offline\.zip"/);
+  assert.match(html, /link\.download = "francesco-offline\.zip"/);
+  assert.doesNotMatch(html, /new Blob\(\[source\]/);
+  assert.doesNotMatch(html, /francesco-teleprompter-offline\.html/);
+});
+
 test('offre una ricerca discreta per andare a una pagina o strofa', () => {
   assert.match(html, /id="pageSearchToggle"/);
   assert.match(html, /id="pageSearchInput"/);

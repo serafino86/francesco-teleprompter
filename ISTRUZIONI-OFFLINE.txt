@@ -1,0 +1,11 @@
+FRANCESCO TELEPROMPTER - USO OFFLINE
+
+1. Scarica il file francesco-offline.zip.
+2. Fai clic destro sul file e scegli "Estrai tutto".
+3. Apri la cartella estratta.
+4. Fai doppio clic su index.html.
+
+IMPORTANTE
+Non spostare index.html fuori dalla cartella estratta: deve restare accanto
+alla cartella audio. Dopo l'estrazione non serve una connessione Internet.
+
