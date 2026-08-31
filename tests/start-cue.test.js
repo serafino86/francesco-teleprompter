@@ -28,6 +28,11 @@ test('i cori usano player sovrapponibili e non interrompono la musica', () => {
   assert.doesNotMatch(html, /const audio = new Audio\(\)/);
 });
 
+test('i percorsi dei cori conservano la cartella audio/cori', () => {
+  assert.match(html, /isChorus\s*\?\s*"audio\/cori\/" \+ encodeURIComponent\(file\.slice\(5\)\)/);
+  assert.doesNotMatch(html, /const src = folder \+ encodeURIComponent\(file\)/);
+});
+
 test('i pulsanti più e meno aggiornano e ridisegnano la dimensione della battuta', () => {
   assert.match(html, /function setSize\(value, refresh = true\)[\s\S]{0,320}if \(refresh\) render\(\)/);
 });

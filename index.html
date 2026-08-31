@@ -6838,8 +6838,11 @@
       b.dataset.label = label;
       if (isEffect) { b.className = "effect-btn"; updateEffectButton(b, "stopped"); }
       b.addEventListener("click", () => {
-        const folder = isMusic ? "audio/tracce/" : "audio/";
-        const src = folder + encodeURIComponent(file);
+        const src = isMusic
+          ? "audio/tracce/" + encodeURIComponent(file)
+          : isChorus
+            ? "audio/cori/" + encodeURIComponent(file.slice(5))
+            : "audio/" + encodeURIComponent(file);
         if (isEffect) {
           cycleEffect(label, src, b);
         } else if (isChorus) {
