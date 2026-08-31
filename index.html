@@ -211,6 +211,10 @@
     .soundboard button { flex: 0 0 auto; width: auto; min-width: 42px; height: 32px; padding: 0 9px; font-size: 12px; white-space: nowrap; }
     .soundboard .fade-btn { border-color: #fb923c; background: rgba(124, 45, 18, .92); color: #fff7ed; font-weight: 800; }
     .soundboard .fade-btn:hover, .soundboard .fade-btn:focus-visible { border-color: #fed7aa; background: #9a3412; }
+    .soundboard .effect-btn[data-effect-state="single"] { border-color: #facc15; background: rgba(113, 63, 18, .94); color: #fefce8; font-weight: 800; }
+    .soundboard .effect-btn[data-effect-state="loop"] { border-color: #c084fc; background: rgba(88, 28, 135, .94); color: #faf5ff; font-weight: 800; }
+    .audio-slider-control { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--button-bg); color: var(--text); font-size: 11px; font-weight: 750; white-space: nowrap; }
+    .audio-slider-control output { min-width: 28px; font-variant-numeric: tabular-nums; }
     .soundboard input { width: 84px; accent-color: var(--accent); }
 
     .offline-tools { grid-area: status; justify-self: end; display: flex; flex-direction: row; align-items: center; gap: 8px; }
@@ -6729,12 +6733,15 @@
     const musicAudio = new Audio();
     musicAudio.loop = false;
     const overlayAudios = new Set();
+    const effectPlayers = new Map();
     const musicTimer = document.getElementById("musicTimer");
     let audioVolume = .8;
+    let effectsVolume = .8;
     let activeChoruses = 0;
     let musicLabel = "";
     let pendingMusic = null;
     let fadeAnimation = null;
+    let fadeDurationSeconds = 3;
     function duckMusicForChorus() {
       activeChoruses += 1;
       if (fadeAnimation === null) musicAudio.volume = Math.min(audioVolume, .05);
@@ -6771,6 +6778,48 @@
       if (nextMusic) startMusic(nextMusic);
       else updateMusicTimer();
     }
+    function updateEffectButton(button, mode) {
+      const label = button.dataset.label;
+      button.dataset.effectState = mode;
+      button.setAttribute("aria-pressed", String(mode !== "stopped"));
+      button.textContent = mode === "single" ? `${label} · 1×` : mode === "loop" ? `${label} · LOOP` : label;
+      button.title = mode === "single"
+        ? `${label}: tocca ancora per il loop`
+        : mode === "loop" ? `${label}: tocca ancora per fermare` : `${label}: riproduci una volta`;
+    }
+    function stopEffect(file) {
+      const effectState = effectPlayers.get(file);
+      if (!effectState) return;
+      effectState.audio.pause();
+      effectState.audio.currentTime = 0;
+      effectState.audio.loop = false;
+      effectPlayers.delete(file);
+      updateEffectButton(effectState.button, "stopped");
+    }
+    function cycleEffect(label, src, button) {
+      const file = button.dataset.file;
+      const effectState = effectPlayers.get(file);
+      if (!effectState) {
+        const audio = new Audio(src);
+        audio.volume = effectsVolume;
+        audio.loop = false;
+        effectPlayers.set(file, { audio, button, mode: "single" });
+        updateEffectButton(button, "single");
+        audio.play().catch(() => stopEffect(file));
+        return;
+      }
+      if (effectState.mode === "single") {
+        effectState.mode = "loop";
+        effectState.audio.loop = true;
+        updateEffectButton(button, "loop");
+        if (effectState.audio.paused || effectState.audio.ended) {
+          effectState.audio.currentTime = 0;
+          effectState.audio.play().catch(() => stopEffect(file));
+        }
+        return;
+      }
+      stopEffect(file);
+    }
     musicAudio.addEventListener("timeupdate", updateMusicTimer);
     musicAudio.addEventListener("loadedmetadata", updateMusicTimer);
     musicAudio.addEventListener("ended", () => {
@@ -6782,11 +6831,18 @@
     });
     audioTracks.forEach(([label, file]) => {
       const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.title = `Riproduci ${label}`;
+      const isMusic = /^\d+ /.test(file);
+      const isChorus = file.startsWith("cori/");
+      const isEffect = !isMusic && !isChorus;
+      b.dataset.file = file;
+      b.dataset.label = label;
+      if (isEffect) { b.className = "effect-btn"; updateEffectButton(b, "stopped"); }
       b.addEventListener("click", () => {
-        const folder = /^\d+ /.test(file) ? "audio/tracce/" : "audio/";
+        const folder = isMusic ? "audio/tracce/" : "audio/";
         const src = folder + encodeURIComponent(file);
-        if (file.startsWith("cori/") || !/^\d+ /.test(file)) {
-          const isChorus = file.startsWith("cori/");
+        if (isEffect) {
+          cycleEffect(label, src, b);
+        } else if (isChorus) {
           const overlay = new Audio(src);
           overlay.volume = audioVolume;
           overlayAudios.add(overlay);
@@ -6819,6 +6875,7 @@
       musicAudio.pause(); musicAudio.currentTime = 0;
       overlayAudios.forEach(track => { track.pause(); track.currentTime = 0; });
       overlayAudios.clear();
+      [...effectPlayers.keys()].forEach(stopEffect);
       activeChoruses = 0;
       musicLabel = "";
       updateMusicTimer();
@@ -6827,7 +6884,7 @@
       if (!musicLabel || musicAudio.paused || fadeAnimation !== null) return;
       const initialVolume = musicAudio.volume;
       const fadeStartedAt = performance.now();
-      const fadeDuration = 1400;
+      const fadeDuration = fadeDurationSeconds * 1000;
       const fadeStep = now => {
         const progress = Math.min(1, (now - fadeStartedAt) / fadeDuration);
         musicAudio.volume = initialVolume * (1 - progress);
@@ -6846,12 +6903,23 @@
     }
     const fade = document.createElement("button"); fade.type = "button"; fade.textContent = "Sfuma"; fade.title = "Sfuma la musica corrente"; fade.className = "fade-btn";
     fade.addEventListener("click", fadeCurrentMusic); board.appendChild(fade);
+    const fadeControl = document.createElement("label"); fadeControl.className = "audio-slider-control"; fadeControl.title = "Durata sfumatura";
+    const fadeLabel = document.createElement("span"); fadeLabel.textContent = "Durata";
+    const fadeSeconds = document.createElement("input"); fadeSeconds.type = "range"; fadeSeconds.min = 1; fadeSeconds.max = 10; fadeSeconds.step = .5; fadeSeconds.value = 3; fadeSeconds.setAttribute("aria-label", "Durata sfumatura in secondi");
+    const fadeValue = document.createElement("output"); fadeValue.textContent = "3 s";
+    fadeSeconds.addEventListener("input", () => { fadeDurationSeconds = Number(fadeSeconds.value); fadeValue.textContent = `${fadeDurationSeconds} s`; });
+    fadeControl.append(fadeLabel, fadeSeconds, fadeValue); board.appendChild(fadeControl);
     const vol = document.createElement("input"); vol.type = "range"; vol.min = 0; vol.max = 1; vol.step = .05; vol.value = .8; vol.title = "Volume";
     vol.addEventListener("input", () => {
       audioVolume = Number(vol.value);
       musicAudio.volume = activeChoruses ? Math.min(audioVolume, .05) : audioVolume;
       overlayAudios.forEach(track => { track.volume = audioVolume; });
-    }); board.appendChild(vol);
+    });
+    const mainVolumeControl = document.createElement("label"); mainVolumeControl.className = "audio-slider-control"; mainVolumeControl.textContent = "Musica/cori"; mainVolumeControl.appendChild(vol); board.appendChild(mainVolumeControl);
+    const effectVolumeControl = document.createElement("label"); effectVolumeControl.className = "audio-slider-control"; effectVolumeControl.textContent = "Volume effetti";
+    const effectVolume = document.createElement("input"); effectVolume.type = "range"; effectVolume.min = 0; effectVolume.max = 1; effectVolume.step = .05; effectVolume.value = .8; effectVolume.setAttribute("aria-label", "Volume effetti");
+    effectVolume.addEventListener("input", () => { effectsVolume = Number(effectVolume.value); effectPlayers.forEach(state => { state.audio.volume = effectsVolume; }); });
+    effectVolumeControl.appendChild(effectVolume); board.appendChild(effectVolumeControl);
 
     document.getElementById("offlineBtn").addEventListener("click", () => {
       const source = '<!doctype html>\\n' + document.documentElement.outerHTML;

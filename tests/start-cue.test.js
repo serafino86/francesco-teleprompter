@@ -23,7 +23,8 @@ test('non mostra gli effetti Campane, Mormorio e Transizione', () => {
 
 test('i cori usano player sovrapponibili e non interrompono la musica', () => {
   assert.match(html, /const musicAudio = new Audio\(\)/);
-  assert.match(html, /file\.startsWith\("cori\/"\)[\s\S]{0,240}new Audio\(src\)/);
+  assert.match(html, /const isChorus = file\.startsWith\("cori\/"\)/);
+  assert.match(html, /else if \(isChorus\) \{[\s\S]{0,160}new Audio\(src\)/);
   assert.doesNotMatch(html, /const audio = new Audio\(\)/);
 });
 
@@ -83,4 +84,24 @@ test('ripristina Sfuma e avvia solo la musica scelta e messa in attesa', () => {
   assert.match(html, /function fadeCurrentMusic\(\)/);
   assert.match(html, /requestAnimationFrame\(fadeStep\)/);
   assert.match(html, /pendingMusic = null;[\s\S]{0,160}updateMusicTimer\(\)/);
+});
+
+test('gli effetti hanno volume separato e ciclo singolo, loop, stop', () => {
+  assert.match(html, /const effectPlayers = new Map\(\)/);
+  assert.match(html, /let effectsVolume = \.8/);
+  assert.match(html, /function cycleEffect\(label, src, button\)/);
+  assert.match(html, /mode: "single"/);
+  assert.match(html, /effectState\.mode === "single"/);
+  assert.match(html, /effectState\.audio\.loop = true/);
+  assert.match(html, /function stopEffect\(file\)/);
+  assert.match(html, /Volume effetti/);
+  assert.match(html, /effectVolume\.addEventListener\("input"/);
+});
+
+test('la durata di Sfuma è regolabile in secondi', () => {
+  assert.match(html, /let fadeDurationSeconds = 3/);
+  assert.match(html, /fadeSeconds\.min = 1; fadeSeconds\.max = 10; fadeSeconds\.step = \.5/);
+  assert.match(html, /fadeDurationSeconds = Number\(fadeSeconds\.value\)/);
+  assert.match(html, /const fadeDuration = fadeDurationSeconds \* 1000/);
+  assert.match(html, /Durata sfumatura/);
 });
