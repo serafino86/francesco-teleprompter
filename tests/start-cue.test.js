@@ -61,6 +61,10 @@ test('la battuta 145 è una didascalia', () => {
 });
 
 test('la battuta 422 è pronunciata da Frate Francesco', () => {
+  assert.equal(cues[420].type, 'stage');
+  assert.equal(cues[420].speaker, 'DIDASCALIA');
+  assert.equal(cues[420].key, 'stage');
+  assert.match(cues[420].text, /Si ferma/);
   assert.equal(cues[421].type, 'line');
   assert.equal(cues[421].speaker, 'FRATE FRANCESCO');
   assert.equal(cues[421].key, 'fratefrancesco');
@@ -76,6 +80,28 @@ test('le battute 356 e 357 distinguono didascalia e Giornalista', () => {
   assert.equal(cues[356].speaker, 'GIORNALISTA');
   assert.equal(cues[356].key, 'giornalista');
   assert.match(cues[356].text, /Grazie, sorelle/);
+});
+
+test('le battute 456 e 457 distinguono didascalia e Dante attore', () => {
+  assert.equal(cues[455].type, 'stage');
+  assert.equal(cues[455].speaker, 'DIDASCALIA');
+  assert.equal(cues[455].key, 'stage');
+  assert.match(cues[455].text, /Sale su un palchetto/);
+  assert.equal(cues[456].type, 'line');
+  assert.equal(cues[456].speaker, 'DANTE ATTORE');
+  assert.equal(cues[456].key, 'danteattore');
+  assert.match(cues[456].text, /Colui che al Sol d’Amor/);
+});
+
+test('le battute 624 e 625 distinguono didascalia e Coro', () => {
+  assert.equal(cues[623].type, 'stage');
+  assert.equal(cues[623].speaker, 'DIDASCALIA');
+  assert.equal(cues[623].key, 'stage');
+  assert.equal(cues[623].text, '(tutti lo cercano)');
+  assert.equal(cues[624].type, 'line');
+  assert.equal(cues[624].speaker, 'CORO');
+  assert.equal(cues[624].key, 'coro');
+  assert.match(cues[624].text, /L’icona si è spezzata/);
 });
 
 test('durante un coro abbassa la musica e la ripristina alla fine', () => {
