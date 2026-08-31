@@ -31,10 +31,17 @@ test('i pulsanti più e meno aggiornano e ridisegnano la dimensione della battut
   assert.match(html, /function setSize\(value, refresh = true\)[\s\S]{0,320}if \(refresh\) render\(\)/);
 });
 
-test('mostra un timer compatto per la musica sotto Scarica offline', () => {
+test('mostra timer e download ben visibili nella colonna destra', () => {
   assert.match(html, /id="musicTimer"/);
   assert.match(html, /musicAudio\.addEventListener\("timeupdate"/);
   assert.match(html, /musicTimer\.textContent/);
+  assert.match(html, /grid-template-areas:\s*"navigation progress status"/);
+  assert.match(html, /\.offline-tools \{[^}]*grid-area: status;[^}]*justify-self: end;/);
+  assert.match(html, /\.offline-btn \{[^}]*height: 44px;[^}]*font-weight: 800;/);
+  assert.match(html, /\.music-timer \{[^}]*font-size: 14px;[^}]*font-variant-numeric: tabular-nums;/);
+  assert.match(html, /\.music-timer \{[^}]*border: 1px solid/);
+  assert.match(html, /musicTimer\.classList\.toggle\("is-active", Boolean\(musicLabel\)\)/);
+  assert.match(html, /MUSICA · In attesa/);
 });
 
 test('offre una ricerca discreta per andare a una pagina o strofa', () => {
