@@ -209,6 +209,8 @@
 
     .soundboard { grid-area: soundboard; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; max-height: 78px; overflow-y: auto; padding-top: 4px; }
     .soundboard button { flex: 0 0 auto; width: auto; min-width: 42px; height: 32px; padding: 0 9px; font-size: 12px; white-space: nowrap; }
+    .soundboard .fade-btn { border-color: #fb923c; background: rgba(124, 45, 18, .92); color: #fff7ed; font-weight: 800; }
+    .soundboard .fade-btn:hover, .soundboard .fade-btn:focus-visible { border-color: #fed7aa; background: #9a3412; }
     .soundboard input { width: 84px; accent-color: var(--accent); }
 
     .offline-tools { grid-area: status; justify-self: end; display: flex; flex-direction: row; align-items: center; gap: 8px; }
@@ -6731,13 +6733,15 @@
     let audioVolume = .8;
     let activeChoruses = 0;
     let musicLabel = "";
+    let pendingMusic = null;
+    let fadeAnimation = null;
     function duckMusicForChorus() {
       activeChoruses += 1;
-      musicAudio.volume = Math.min(audioVolume, .05);
+      if (fadeAnimation === null) musicAudio.volume = Math.min(audioVolume, .05);
     }
     function restoreMusicVolume() {
       activeChoruses = Math.max(0, activeChoruses - 1);
-      if (activeChoruses === 0) musicAudio.volume = audioVolume;
+      if (activeChoruses === 0 && fadeAnimation === null) musicAudio.volume = audioVolume;
     }
     const formatTime = seconds => {
       if (!Number.isFinite(seconds)) return "--:--";
@@ -6746,13 +6750,36 @@
     };
     const updateMusicTimer = () => {
       musicTimer.classList.toggle("is-active", Boolean(musicLabel));
+      const queuedLabel = pendingMusic ? ` · Poi: ${pendingMusic.label}` : "";
       musicTimer.textContent = musicLabel
-        ? `MUSICA · ${musicLabel} · ${formatTime(musicAudio.currentTime)} / ${formatTime(musicAudio.duration)}`
+        ? `MUSICA · ${musicLabel} · ${formatTime(musicAudio.currentTime)} / ${formatTime(musicAudio.duration)}${queuedLabel}`
         : "MUSICA · In attesa";
     };
+    function startMusic(track) {
+      musicLabel = track.label;
+      musicAudio.src = track.src;
+      musicAudio.volume = activeChoruses ? Math.min(audioVolume, .05) : audioVolume;
+      updateMusicTimer();
+      musicAudio.play().catch(() => {
+        musicLabel = "";
+        updateMusicTimer();
+      });
+    }
+    function startPendingMusic() {
+      const nextMusic = pendingMusic;
+      pendingMusic = null;
+      if (nextMusic) startMusic(nextMusic);
+      else updateMusicTimer();
+    }
     musicAudio.addEventListener("timeupdate", updateMusicTimer);
     musicAudio.addEventListener("loadedmetadata", updateMusicTimer);
-    musicAudio.addEventListener("ended", () => { musicLabel = ""; updateMusicTimer(); });
+    musicAudio.addEventListener("ended", () => {
+      if (fadeAnimation !== null) cancelAnimationFrame(fadeAnimation);
+      fadeAnimation = null;
+      musicLabel = "";
+      updateMusicTimer();
+      startPendingMusic();
+    });
     audioTracks.forEach(([label, file]) => {
       const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.title = `Riproduci ${label}`;
       b.addEventListener("click", () => {
@@ -6774,17 +6801,21 @@
           overlay.addEventListener("ended", releaseOverlay, {once: true});
           overlay.play().catch(releaseOverlay);
         } else {
-          musicLabel = label;
-          musicAudio.src = src;
-          musicAudio.volume = activeChoruses ? Math.min(audioVolume, .05) : audioVolume;
-          updateMusicTimer();
-          musicAudio.play().catch(() => {});
+          if (musicLabel && !musicAudio.paused && !musicAudio.ended) {
+            pendingMusic = { label, src };
+            updateMusicTimer();
+          } else {
+            startMusic({ label, src });
+          }
         }
       });
       board.appendChild(b);
     });
     const stop = document.createElement("button"); stop.type = "button"; stop.textContent = "■"; stop.title = "Ferma audio";
     stop.addEventListener("click", () => {
+      if (fadeAnimation !== null) cancelAnimationFrame(fadeAnimation);
+      fadeAnimation = null;
+      pendingMusic = null;
       musicAudio.pause(); musicAudio.currentTime = 0;
       overlayAudios.forEach(track => { track.pause(); track.currentTime = 0; });
       overlayAudios.clear();
@@ -6792,6 +6823,29 @@
       musicLabel = "";
       updateMusicTimer();
     }); board.appendChild(stop);
+    function fadeCurrentMusic() {
+      if (!musicLabel || musicAudio.paused || fadeAnimation !== null) return;
+      const initialVolume = musicAudio.volume;
+      const fadeStartedAt = performance.now();
+      const fadeDuration = 1400;
+      const fadeStep = now => {
+        const progress = Math.min(1, (now - fadeStartedAt) / fadeDuration);
+        musicAudio.volume = initialVolume * (1 - progress);
+        if (progress < 1) {
+          fadeAnimation = requestAnimationFrame(fadeStep);
+          return;
+        }
+        fadeAnimation = null;
+        musicAudio.pause();
+        musicAudio.currentTime = 0;
+        musicLabel = "";
+        updateMusicTimer();
+        startPendingMusic();
+      };
+      fadeAnimation = requestAnimationFrame(fadeStep);
+    }
+    const fade = document.createElement("button"); fade.type = "button"; fade.textContent = "Sfuma"; fade.title = "Sfuma la musica corrente"; fade.className = "fade-btn";
+    fade.addEventListener("click", fadeCurrentMusic); board.appendChild(fade);
     const vol = document.createElement("input"); vol.type = "range"; vol.min = 0; vol.max = 1; vol.step = .05; vol.value = .8; vol.title = "Volume";
     vol.addEventListener("input", () => {
       audioVolume = Number(vol.value);

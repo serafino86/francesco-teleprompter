@@ -73,3 +73,14 @@ test('durante un coro abbassa la musica e la ripristina alla fine', () => {
   assert.match(html, /overlay\.addEventListener\("ended",\s*releaseOverlay/);
   assert.match(html, /musicAudio\.volume = activeChoruses \? Math\.min\(audioVolume, \.05\) : audioVolume/);
 });
+
+test('ripristina Sfuma e avvia solo la musica scelta e messa in attesa', () => {
+  assert.match(html, /fade\.textContent = "Sfuma"/);
+  assert.match(html, /let pendingMusic = null/);
+  assert.match(html, /function startPendingMusic\(\)/);
+  assert.match(html, /pendingMusic = \{ label, src \}/);
+  assert.match(html, /musicAudio\.addEventListener\("ended",[\s\S]{0,220}startPendingMusic\(\)/);
+  assert.match(html, /function fadeCurrentMusic\(\)/);
+  assert.match(html, /requestAnimationFrame\(fadeStep\)/);
+  assert.match(html, /pendingMusic = null;[\s\S]{0,160}updateMusicTimer\(\)/);
+});
