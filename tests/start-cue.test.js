@@ -67,6 +67,17 @@ test('la battuta 422 è pronunciata da Frate Francesco', () => {
   assert.match(cues[421].text, /Sapete cos’è il miracolo\?/);
 });
 
+test('le battute 356 e 357 distinguono didascalia e Giornalista', () => {
+  assert.equal(cues[355].type, 'stage');
+  assert.equal(cues[355].speaker, 'DIDASCALIA');
+  assert.equal(cues[355].key, 'stage');
+  assert.equal(cues[355].text, '(voci di mercato)');
+  assert.equal(cues[356].type, 'line');
+  assert.equal(cues[356].speaker, 'GIORNALISTA');
+  assert.equal(cues[356].key, 'giornalista');
+  assert.match(cues[356].text, /Grazie, sorelle/);
+});
+
 test('durante un coro abbassa la musica e la ripristina alla fine', () => {
   assert.match(html, /function duckMusicForChorus\(/);
   assert.match(html, /musicAudio\.volume\s*=\s*Math\.min\(audioVolume,\s*\.05\)/);
