@@ -5,9 +5,12 @@ const path = require('node:path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 
-test('all’apertura chiede la strofa iniziale e, se ignorata, parte dalla prima', () => {
-  assert.match(html, /prompt\([^)]*strofa/i);
-  assert.match(html, /startCue\s*===\s*null[\s\S]{0,160}index\s*=\s*0/);
+test('all’apertura mostra una finestra interna per scegliere pagina o strofa', () => {
+  assert.match(html, /id="startDialog"/);
+  assert.match(html, /id="startCueInput"/);
+  assert.match(html, /Da quale pagina\/strofa vuoi iniziare\?/i);
+  assert.match(html, /id="startFromFirstBtn"/);
+  assert.doesNotMatch(html, /prompt\(/);
 });
 
 test('non mostra gli effetti Campane, Mormorio e Transizione', () => {
@@ -30,4 +33,10 @@ test('mostra un timer compatto per la musica sotto Scarica offline', () => {
   assert.match(html, /id="musicTimer"/);
   assert.match(html, /musicAudio\.addEventListener\("timeupdate"/);
   assert.match(html, /musicTimer\.textContent/);
+});
+
+test('offre una ricerca discreta per andare a una pagina o strofa', () => {
+  assert.match(html, /id="pageSearchToggle"/);
+  assert.match(html, /id="pageSearchInput"/);
+  assert.match(html, /function goToCue\(requested\)/);
 });

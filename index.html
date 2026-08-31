@@ -210,6 +210,21 @@
     .offline-btn { width: auto; height: 34px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
     .music-timer { min-height: 16px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+    .start-dialog { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.78); backdrop-filter: blur(8px); }
+    .start-dialog[hidden] { display: none; }
+    .start-card { width: min(440px, 100%); padding: 24px; border: 1px solid rgba(255,255,255,.28); border-radius: 14px; background: #111827; color: #f8fafc; box-shadow: 0 24px 70px rgba(0,0,0,.55); }
+    .start-card h2 { margin: 0 0 8px; font-size: 24px; }
+    .start-card p { margin: 0 0 16px; color: #cbd5e1; }
+    .start-card input { width: 100%; height: 48px; padding: 0 12px; border: 1px solid #64748b; border-radius: 8px; background: #0f172a; color: #fff; font-size: 20px; }
+    .start-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .start-actions button { width: auto; min-width: 120px; padding: 0 14px; font-size: 15px; }
+    .page-search { position: fixed; top: 10px; right: 10px; z-index: 9000; }
+    .page-search-toggle { width: 34px; height: 34px; border-radius: 999px; font-size: 16px; background: rgba(0,0,0,.55); }
+    .page-search-panel { position: absolute; top: 40px; right: 0; display: flex; gap: 6px; width: 230px; padding: 8px; border: 1px solid rgba(255,255,255,.28); border-radius: 10px; background: rgba(15,23,42,.96); box-shadow: 0 12px 30px rgba(0,0,0,.45); }
+    .page-search-panel[hidden] { display: none; }
+    .page-search-panel input { min-width: 0; width: 100%; height: 34px; padding: 0 8px; border: 1px solid #64748b; border-radius: 6px; background: #0f172a; color: #fff; }
+    .page-search-panel button { width: auto; height: 34px; padding: 0 10px; font-size: 13px; }
+
     button {
       width: 48px;
       height: 48px;
@@ -299,6 +314,24 @@
   </style>
 </head>
 <body>
+  <div class="page-search">
+    <button id="pageSearchToggle" class="page-search-toggle" type="button" title="Cerca pagina o strofa" aria-expanded="false">⌕</button>
+    <form id="pageSearchForm" class="page-search-panel" hidden>
+      <input id="pageSearchInput" type="number" min="1" inputmode="numeric" aria-label="Numero pagina o strofa" placeholder="Pagina/strofa">
+      <button type="submit">Vai</button>
+    </form>
+  </div>
+  <div id="startDialog" class="start-dialog" role="dialog" aria-modal="true" aria-labelledby="startDialogTitle">
+    <form id="startCueForm" class="start-card">
+      <h2 id="startDialogTitle">Da quale pagina/strofa vuoi iniziare?</h2>
+      <p>Inserisci il numero oppure parti dalla prima.</p>
+      <input id="startCueInput" type="number" min="1" inputmode="numeric" placeholder="1" autofocus>
+      <div class="start-actions">
+        <button type="submit">Inizia</button>
+        <button id="startFromFirstBtn" type="button">Parti da 1</button>
+      </div>
+    </form>
+  </div>
   <header class="topbar">
     <div class="speaker">
       <div id="speakerName" class="speaker-name"></div>
@@ -6450,16 +6483,7 @@
     const storageKey = "prima-attesa-tv-index";
     const sizeKey = "prima-attesa-tv-size";
 
-    const startCue = prompt(`Da quale strofa vuoi iniziare? (1-${cues.length})`);
     let index = 0;
-    if (startCue === null || startCue.trim() === "") {
-      index = 0;
-    } else {
-      const requestedCue = Number.parseInt(startCue, 10);
-      if (Number.isInteger(requestedCue) && requestedCue >= 1 && requestedCue <= cues.length) {
-        index = requestedCue - 1;
-      }
-    }
     localStorage.setItem(storageKey, String(index));
     let cueSize = Number(localStorage.getItem(sizeKey) || 8.6);
 
@@ -6473,6 +6497,49 @@
     const progressFill = document.getElementById("progressFill");
     const nextPanel = document.getElementById("nextPanel");
     const palette = document.getElementById("palette");
+    const startDialog = document.getElementById("startDialog");
+    const startCueInput = document.getElementById("startCueInput");
+    const pageSearchToggle = document.getElementById("pageSearchToggle");
+    const pageSearchForm = document.getElementById("pageSearchForm");
+    const pageSearchInput = document.getElementById("pageSearchInput");
+    startCueInput.max = String(cues.length);
+    pageSearchInput.max = String(cues.length);
+
+    function goToCue(requested) {
+      const cueNumber = Number.parseInt(requested, 10);
+      if (!Number.isInteger(cueNumber) || cueNumber < 1 || cueNumber > cues.length) return false;
+      index = cueNumber - 1;
+      localStorage.setItem(storageKey, String(index));
+      pageSearchForm.hidden = true;
+      pageSearchToggle.setAttribute("aria-expanded", "false");
+      render();
+      return true;
+    }
+
+    pageSearchToggle.addEventListener("click", () => {
+      pageSearchForm.hidden = !pageSearchForm.hidden;
+      pageSearchToggle.setAttribute("aria-expanded", String(!pageSearchForm.hidden));
+      if (!pageSearchForm.hidden) { pageSearchInput.value = String(index + 1); pageSearchInput.select(); }
+    });
+    pageSearchForm.addEventListener("submit", event => {
+      event.preventDefault();
+      goToCue(pageSearchInput.value);
+    });
+
+    function closeStartDialog(requested = 1) {
+      const cueNumber = Number.parseInt(requested, 10);
+      index = Number.isInteger(cueNumber) && cueNumber >= 1 && cueNumber <= cues.length ? cueNumber - 1 : 0;
+      localStorage.setItem(storageKey, String(index));
+      startDialog.hidden = true;
+      render();
+    }
+
+    document.getElementById("startCueForm").addEventListener("submit", event => {
+      event.preventDefault();
+      closeStartDialog(startCueInput.value || 1);
+    });
+    document.getElementById("startFromFirstBtn").addEventListener("click", () => closeStartDialog(1));
+    startDialog.addEventListener("click", event => { if (event.target === startDialog) closeStartDialog(1); });
 
     function setSize(value, refresh = true) {
       cueSize = Math.min(12, Math.max(5.4, value));
@@ -6597,6 +6664,10 @@
 
     document.addEventListener("keydown", (event) => {
       if (event.repeat) return;
+      if (!startDialog.hidden) {
+        if (event.key === "Escape") closeStartDialog(1);
+        return;
+      }
       if (event.key === "ArrowRight" || event.key === " " || event.key === "Enter") {
         event.preventDefault();
         go(1);
@@ -6621,7 +6692,7 @@
     });
 
     document.addEventListener("click", (event) => {
-      if (!event.target.closest("button")) go(1);
+      if (!event.target.closest("button") && !event.target.closest(".page-search") && !event.target.closest(".start-dialog")) go(1);
     });
 
     const audioTracks = [
